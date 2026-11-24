@@ -1,2 +1,7 @@
 # github-token-broker
-OIDC-to-GitHub-App token broker (Cloud Run): mints single-repo installation tokens for GitHub Actions
+
+Cloud Run service that exchanges a GitHub Actions OIDC JWT for a 1-hour GitHub App installation token
+scoped to exactly the calling repository (`POST /token`). The App private key never leaves Secret Manager.
+
+Env: `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (from Secret Manager), `ALLOWED_GITHUB_OWNER`,
+optional `BROKER_AUDIENCE` (defaults to the request's public URL), and standard `OTEL_*` variables.
