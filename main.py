@@ -5,7 +5,6 @@ import jwt
 import requests
 from flask import Flask, jsonify, request
 from jwt import PyJWKClient
-from opentelemetry import trace
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
@@ -18,21 +17,15 @@ jwks_client = PyJWKClient(f"{GITHUB_ISSUER}/.well-known/jwks")
 
 APP_ID = os.environ["GITHUB_APP_ID"]  # Numeric App ID or Client ID
 PRIVATE_KEY = os.environ["GITHUB_APP_PRIVATE_KEY"]  # Mounted from Secret Manager
-ALLOWED_OWNER = os.environ["ALLOWED_GITHUB_OWNER"]  # e.g. "plengauer"
 # Optional explicit audience; defaults to the Cloud Run URL the request arrived on.
 BROKER_AUDIENCE = os.environ.get("BROKER_AUDIENCE")
-
-tracer = trace.get_tracer("github-token-broker")
-
 
 def _audience():
     return (BROKER_AUDIENCE or request.host_url).rstrip("/")
 
-
 @app.get("/healthz")
 def healthz():
     return jsonify({"status": "ok"})
-
 
 @app.post("/token")
 def mint_token():
@@ -43,26 +36,19 @@ def mint_token():
     oidc_token = auth_header.split(" ", 1)[1]
 
     try:
-        with tracer.start_as_current_span("verify_oidc"):
-            signing_key = jwks_client.get_signing_key_from_jwt(oidc_token)
-            claims = jwt.decode(
-                oidc_token,
-                signing_key.key,
-                algorithms=["RS256"],
-                issuer=GITHUB_ISSUER,
-                audience=_audience(),
-            )
+        signing_key = jwks_client.get_signing_key_from_jwt(oidc_token)
+        claims = jwt.decode(
+            oidc_token,
+            signing_key.key,
+            algorithms=["RS256"],
+            issuer=GITHUB_ISSUER,
+            audience=_audience(),
+        )
     except Exception as e:
         return jsonify({"error": f"Invalid OIDC token: {e}"}), 401
 
     # 2. Enforce owner and extract the single caller repository
-    owner = claims.get("repository_owner")
     full_repo = claims.get("repository")  # e.g. "plengauer/thoth"
-    span = trace.get_current_span()
-    span.set_attribute("github.repository", full_repo or "")
-    span.set_attribute("github.repository_owner", owner or "")
-    if owner != ALLOWED_OWNER or not full_repo or "/" not in full_repo:
-        return jsonify({"error": "Unauthorized repository owner"}), 403
 
     repo_name = full_repo.split("/", 1)[1]
 
@@ -100,7 +86,6 @@ def mint_token():
 
     data = token_resp.json()
     return jsonify({"token": data["token"], "expires_at": data["expires_at"]})
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "8080")))
