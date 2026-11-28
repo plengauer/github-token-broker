@@ -22,7 +22,7 @@ runs:
         oidc_jwt="$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$BROKER_URL" | sed -n 's/.*"value": *"\([^"]*\)".*/\1/p')"
         [ -n "$oidc_jwt" ]
         echo "::add-mask::$oidc_jwt"
-        token="$(curl -sSf -X POST "$BROKER_URL/token" -H "Authorization: Bearer $oidc_jwt" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')"
+        token="$(OTEL_PROPAGATORS=tracecontext,b3,baggage curl -sSf -X POST "$BROKER_URL/token" -H "Authorization: Bearer $oidc_jwt" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')"
         [ -n "$token" ]
         echo "::add-mask::$token"
         echo "token=$token" >> "$GITHUB_OUTPUT"
