@@ -21,7 +21,7 @@ jobs:
       issues: write
       security-events: write      
     steps:
-      - uses: renovatebot/github-action@22e0a16091fc706b04affe6ae53d5e3358ac4023 # v46.1.19
+      - uses: renovatebot/github-action@1376d90bcd3a4d4e7393ae762eea56ac684aee38 # v48.0.0
         env:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_ONBOARDING_CONFIG_FILE_NAME: .github/renovate.json
